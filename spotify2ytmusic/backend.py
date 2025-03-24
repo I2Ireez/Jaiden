@@ -417,6 +417,8 @@ def copier(
                     print(
                         f"ERROR: (Retrying add_playlist_items: {dst_pl_id} {dst_track['videoId']}) {e} in {exception_sleep} seconds"
                     )
+                    if "Server returned HTTP 401: Unauthorized" in str(e):
+                        print("Most likely, the YTMusic token expired. Perform the authentication again, and keep music playing in the browser where you obtained the token from")
                     time.sleep(exception_sleep)
                     exception_sleep *= 2
 
