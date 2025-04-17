@@ -253,7 +253,7 @@ class Window:
             self.tab7,
             self.var_algo,
             0,
-            *[1, 2],
+            *[1, 2, 3],
             command=lambda x: self.load_write_settings(1),
         )
         menu_algo.pack(anchor=tk.CENTER, expand=True)
@@ -341,7 +341,7 @@ class Window:
         Args:
             action (int): 0 to load the settings, 1 to write the settings.
         """
-        texts = {0: "Exact match", 1: "Fuzzy match", 2: "Fuzzy match with videos"}
+        texts = {0: "Exact match", 1: "Fuzzy match", 2: "Fuzzy match with videos", 3: "Normalized Metadata Matching Algorithm"}
 
         exist = True
         if action == 0:
