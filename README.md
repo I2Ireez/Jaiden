@@ -6,7 +6,7 @@ This is a set of scripts for copying "liked" songs and playlists from Spotify to
 
 ### Preparation/Pre-Conditions
 
-1. **Install Python and Git** (you may already have them installed).
+1. **Install Python version >= 3.7 and Git** (you may already have them installed).
 2. **Uninstall the pip package from the original repository** (if you previously installed `linsomniac/spotify_to_ytmusic`):
 
    On Windows:
