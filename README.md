@@ -197,6 +197,12 @@ Run: `s2yt_load_liked_albums`
 Spotify stores liked albums outside of the "Liked Songs" playlist. This is the command to
 load your liked albums into YTMusic liked songs.
 
+### Subscribe to Your Followed Artists
+
+Run: `s2yt_load_liked_artists`
+
+This command will fetch all the artists you follow on Spotify and subscribe to their corresponding channels on YouTube Music. For each artist, it will search for the matching artist on YouTube Music, get their channel ID, and subscribe to them.
+
 ### List Your Playlists
 
 Run `s2yt_list_playlists`

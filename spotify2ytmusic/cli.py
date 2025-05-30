@@ -344,3 +344,40 @@ def ytoauth():
 
     sys.argv = ["ytmusicapi", "oauth"]
     sys.exit(main())
+
+
+def load_liked_artists():
+    """
+    Subscribe to YTMusic artist channels based on Spotify followed artists.
+    """
+    parser = ArgumentParser(
+        description="Subscribe to YTMusic artist channels based on Spotify followed artists"
+    )
+    parser.add_argument(
+        "--spotify-playlist-file",
+        default="playlists.json",
+        help="Location of the Spotify playlists file (default: playlists.json)",
+    )
+    parser.add_argument(
+        "--spotify-playlists-encoding",
+        default="utf-8",
+        help="Character encoding of the Spotify playlist file (default: utf-8)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Only show what would be done without actually subscribing",
+    )
+
+    args = parser.parse_args()
+
+    # Display an informational message
+    print(
+        "Retrieving followed artists from Spotify and subscribing on YouTube Music..."
+    )
+
+    backend.subscribe_to_artists(
+        spotify_playlist_file=args.spotify_playlist_file,
+        spotify_encoding=args.spotify_playlists_encoding,
+        dry_run=args.dry_run,
+    )
