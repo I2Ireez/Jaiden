@@ -12,7 +12,7 @@ import sys
 import time
 import urllib.error
 import urllib.parse
-import urllib.request
+import requests
 import webbrowser
 
 
@@ -82,13 +82,13 @@ class SpotifyAPI:
 
     def _create_request(self, url):
         """Create an authenticated request."""
-        req = urllib.request.Request(url)
+        req = requests.Request(url)
         req.add_header("Authorization", f"Bearer {self._auth}")
         return req
 
     def _read_response(self, req):
         """Read and parse the response."""
-        with urllib.request.urlopen(req) as res:
+        with requests.urlopen(req) as res:
             reader = codecs.getreader("utf-8")
             return json.load(reader(res))
 
