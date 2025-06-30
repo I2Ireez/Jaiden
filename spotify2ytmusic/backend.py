@@ -494,7 +494,7 @@ def copy_all_playlists(
     spotify_playlists_encoding: str = "utf-8",
     yt_search_algo: int = 0,
     reverse_playlist: bool = True,
-    privacy_status: str = "PRIVATE",
+    privacy_status: str = "PUBLIC",
 ):
     """
     Copy all Spotify playlists (except Liked Songs) to YTMusic playlists
