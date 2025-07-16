@@ -21,6 +21,24 @@ This is a set of scripts for copying "liked" songs and playlists from Spotify to
    python3 -m pip uninstall spotify2ytmusic
    ```
 
+3. **Verify installation of tkinter** (many linux distros don't include tkinter despite
+   being in the python standard library).
+
+    On Ubuntu/Debian:
+    ```bash
+    sudo apt-get install python3-tk
+    ```
+
+    On Fedora:
+    ```bash
+    sudo dnf install python3-tkinter
+    ```
+
+    On Arch Linux:
+    ```bash
+    sudo pacman -S tk
+    ```
+
 ---
 
 ### Setup Instructions
