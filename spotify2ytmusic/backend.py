@@ -272,77 +272,76 @@ def lookup_song(
         details.suggestions = yt.get_search_suggestions(query=query)
     songs = yt.search(query=query, filter="songs")
 
-    match yt_search_algo:
-        case 0:
-            if details:
-                details.songs = songs
-            return songs[0]
+    if yt_search_algo == 0:
+        if details:
+            details.songs = songs
+        return songs[0]
 
-        case 1:
-            for song in songs:
-                if (
-                    song["title"] == track_name
-                    and song["artists"][0]["name"] == artist_name
+    elif yt_search_algo == 1:
+        for song in songs:
+            if (
+                song["title"] == track_name
+                and song["artists"][0]["name"] == artist_name
+                and song["album"]["name"] == album_name
+            ):
+                return song
+            # print(f"SONG: {song['videoId']} - {song['title']} - {song['artists'][0]['name']} - {song['album']['name']}")
+
+        raise ValueError(
+            f"Did not find {track_name} by {artist_name} from {album_name}"
+        )
+
+    elif yt_search_algo == 2:
+        #  This would need to do fuzzy matching
+        for song in songs:
+            # Remove everything in brackets in the song title
+            song_title_without_brackets = re.sub(r"[\[(].*?[])]", "", song["title"])
+            if (
+                (
+                    song_title_without_brackets == track_name
                     and song["album"]["name"] == album_name
-                ):
-                    return song
-                # print(f"SONG: {song['videoId']} - {song['title']} - {song['artists'][0]['name']} - {song['album']['name']}")
+                )
+                or (song_title_without_brackets == track_name)
+                or (song_title_without_brackets in track_name)
+                or (track_name in song_title_without_brackets)
+            ) and (
+                song["artists"][0]["name"] == artist_name
+                or artist_name in song["artists"][0]["name"]
+            ):
+                return song
 
-            raise ValueError(
-                f"Did not find {track_name} by {artist_name} from {album_name}"
-            )
+        # Finds approximate match
+        # This tries to find a song anyway. Works when the song is not released as a music but a video.
+        else:
+            track_name = track_name.lower()
+            first_song_title = songs[0]["title"].lower()
+            if (
+                track_name not in first_song_title
+                or songs[0]["artists"][0]["name"] != artist_name
+            ):  # If the first song is not the one we are looking for
+                print("Not found in songs, searching videos")
+                new_songs = yt.search(
+                    query=f"{track_name} by {artist_name}", filter="videos"
+                )  # Search videos
 
-        case 2:
-            #  This would need to do fuzzy matching
-            for song in songs:
-                # Remove everything in brackets in the song title
-                song_title_without_brackets = re.sub(r"[\[(].*?[])]", "", song["title"])
-                if (
-                    (
-                        song_title_without_brackets == track_name
-                        and song["album"]["name"] == album_name
-                    )
-                    or (song_title_without_brackets == track_name)
-                    or (song_title_without_brackets in track_name)
-                    or (track_name in song_title_without_brackets)
-                ) and (
-                    song["artists"][0]["name"] == artist_name
-                    or artist_name in song["artists"][0]["name"]
-                ):
-                    return song
-
-            # Finds approximate match
-            # This tries to find a song anyway. Works when the song is not released as a music but a video.
-            else:
-                track_name = track_name.lower()
-                first_song_title = songs[0]["title"].lower()
-                if (
-                    track_name not in first_song_title
-                    or songs[0]["artists"][0]["name"] != artist_name
-                ):  # If the first song is not the one we are looking for
-                    print("Not found in songs, searching videos")
-                    new_songs = yt.search(
-                        query=f"{track_name} by {artist_name}", filter="videos"
-                    )  # Search videos
-
-                    # From here, we search for videos reposting the song. They often contain the name of it and the artist. Like with 'Nekfeu - Ecrire'.
-                    for new_song in new_songs:
-                        new_song_title = new_song[
-                            "title"
-                        ].lower()  # People sometimes mess up the capitalization in the title
-                        if (
-                            track_name in new_song_title
-                            and artist_name in new_song_title
-                        ) or (track_name in new_song_title):
-                            print("Found a video")
-                            return new_song
-                    else:
-                        # Basically we only get here if the song isn't present anywhere on YouTube
-                        raise ValueError(
-                            f"Did not find {track_name} by {artist_name} from {album_name}"
-                        )
+                # From here, we search for videos reposting the song. They often contain the name of it and the artist. Like with 'Nekfeu - Ecrire'.
+                for new_song in new_songs:
+                    new_song_title = new_song[
+                        "title"
+                    ].lower()  # People sometimes mess up the capitalization in the title
+                    if (
+                        track_name in new_song_title
+                        and artist_name in new_song_title
+                    ) or (track_name in new_song_title):
+                        print("Found a video")
+                        return new_song
                 else:
-                    return songs[0]
+                    # Basically we only get here if the song isn't present anywhere on YouTube
+                    raise ValueError(
+                        f"Did not find {track_name} by {artist_name} from {album_name}"
+                    )
+            else:
+                return songs[0]
 
 
 def copier(
