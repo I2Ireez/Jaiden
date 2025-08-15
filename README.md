@@ -91,7 +91,18 @@ The GUI will **ignore the 'Login to YT Music' tab** and jump straight to the 'Sp
 
 ---
 
-#### 3. Use the GUI for Migration
+#### 3. Install tkinter (Required for GUI on Linux (Ubuntu/Debian))
+
+If you're using Linux, you'll need to install tkinter before using the GUI:
+
+```bash
+sudo apt-get update
+sudo apt-get install python3-tk
+```
+
+---
+
+#### 4. Use the GUI for Migration
 
 Now you can use the graphical user interface (GUI) to migrate your playlists and liked songs to YouTube Music. Start the GUI with the following command:
 
