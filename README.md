@@ -275,27 +275,37 @@ ValueError.
 Try playing music in the browser on Youtube Music while you are loading the playlists,
 this has been reported to keep the session from timing out.
 
+There is a recovery system when your authentication token with YouTube Music expires.
+You will be prompted to complete [Generate YouTube Music Credentials](#2-Generate-YouTube-Music-Credentials)
+step again. Fill out the raw_headers.txt and run the script again in a new terminal.
+```bash
+python spotify2ytmusic/ytmusic_credentials.py
+```
+When successful go back to the terminal where you opened GUI and press enter.
+
+Side note: in the raw_headers.txt you only need to replace the cookie to refresh authentication.
+
 - Does this run on mobile?
 
 No, this runs on Linux/Windows/MacOS.
 
 - How does the lookup algorithm work?
 
-  Given the Spotify track information, it does a lookup for the album by the same artist
-  on YTMusic, then looks at the first 3 hits looking for a track with exactly the same
-  name. In the event that it can't find that exact track, it then does a search of songs
-  for the track name by the same artist and simply returns the first hit.
+Given the Spotify track information, it does a lookup for the album by the same artist
+on YTMusic, then looks at the first 3 hits looking for a track with exactly the same
+name. In the event that it can't find that exact track, it then does a search of songs
+for the track name by the same artist and simply returns the first hit.
 
-  The idea is that finding the album and artist and then looking for the exact track match
-  will be more likely to be accurate than searching for the song and artist and relying on
-  the YTMusic algorithm to figure things out, especially for short tracks that might be
-  have many contradictory hits like "Survival by Yes".
+The idea is that finding the album and artist and then looking for the exact track match
+will be more likely to be accurate than searching for the song and artist and relying on
+the YTMusic algorithm to figure things out, especially for short tracks that might be
+have many contradictory hits like "Survival by Yes".
 
 - My copy is failing with repeated "ERROR: (Retrying) Server returned HTTP 400: Bad
   Request".
 
-  Try running with "--track-sleep=3" argument to do a 3 second sleep between tracks. This
-  will take much longer, but may succeed where faster rates have failed.
+Try running with "--track-sleep=3" argument to do a 3 second sleep between tracks. This
+will take much longer, but may succeed where faster rates have failed.
 
 ## License
 
