@@ -11,6 +11,7 @@ from typing import Optional, Union, Iterator, Dict, List
 from collections import namedtuple
 from dataclasses import dataclass, field
 
+from ytmusicapi.exceptions import YTMusicUserError
 
 SongInfo = namedtuple("SongInfo", ["title", "artist", "album"])
 
@@ -31,6 +32,10 @@ def get_ytmusic() -> YTMusic:
         print("       This typically means a problem with a 'oauth.json' file.")
         print("       Have you logged in to YTMusic?  Run 'ytmusicapi oauth' to login")
         sys.exit(1)
+    except YTMusicUserError as e:
+        print(f"ERROR: Something went wrong with your setup, try again: {e}")
+        print("       This typically means a problem with a 'oauth.json' file.")
+        print("       This can come from wrongly pasted details to raw_headers.txt")
 
 
 def _ytmusic_create_playlist(
@@ -417,6 +422,14 @@ def copier(
                     print(
                         f"ERROR: (Retrying add_playlist_items: {dst_pl_id} {dst_track['videoId']}) {e} in {exception_sleep} seconds"
                     )
+                    if "401" in str(e):
+                        print("\n❌ Authentication error: Most likely Your YTMusic token has expired.")
+                        print("➡ Please run the **2. Generate YouTube Music Credentials** step again.")
+                        print("   (Keep music playing in the same browser session where you obtained the token.)")
+                        print("   You need to replace the cookie in the raw_headers.txt with a fresh one")
+                        print("   Press ENTER in your terminal once completed")
+                        input("\nPress ENTER once you've re-authenticated to continue... ")
+                        yt = get_ytmusic()
                     time.sleep(exception_sleep)
                     exception_sleep *= 2
 
@@ -500,9 +513,10 @@ def copy_all_playlists(
     Copy all Spotify playlists (except Liked Songs) to YTMusic playlists
     """
     spotify_pls = load_playlists_json()
-    yt = get_ytmusic()
 
     for src_pl in spotify_pls["playlists"]:
+        yt = get_ytmusic() # Create YTMusic on every iteration to account for 401 errors downstream
+
         if str(src_pl.get("name")) == "Liked Songs":
             continue
 
