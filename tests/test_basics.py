@@ -6,7 +6,7 @@ import spotify2ytmusic
 
 
 class TestCopier(unittest.TestCase):
-    @patch("spotify2ytmusic.cli.YTMusic")
+    @patch("spotify2ytmusic.backend.YTMusic")
     def test_copier_success(self, mock_ytmusic):
         # Setup mock responses
         mock_ytmusic_instance = MagicMock()
@@ -14,8 +14,8 @@ class TestCopier(unittest.TestCase):
         mock_ytmusic_instance.get_playlist.return_value = {"title": "Test Playlist"}
         mock_ytmusic_instance.add_playlist_items.return_value = None
 
-        spotify2ytmusic.cli.copier(
-            spotify2ytmusic.cli.iter_spotify_playlist(
+        spotify2ytmusic.backend.copier(
+            spotify2ytmusic.backend.iter_spotify_playlist(
                 "68QlHDwCiXfhodLpS72iOx",
                 spotify_playlist_file="tests/playliststest.json",
             ),
@@ -26,7 +26,7 @@ class TestCopier(unittest.TestCase):
             playlistId="dst_test"
         )
 
-    @patch("spotify2ytmusic.cli.YTMusic")
+    @patch("spotify2ytmusic.backend.YTMusic")
     def test_copier_albums(self, mock_ytmusic):
         # Setup mock responses
         mock_ytmusic_instance = MagicMock()
@@ -34,8 +34,8 @@ class TestCopier(unittest.TestCase):
         mock_ytmusic_instance.get_playlist.return_value = {"title": "Test Playlist"}
         mock_ytmusic_instance.add_playlist_items.return_value = None
 
-        spotify2ytmusic.cli.copier(
-            spotify2ytmusic.cli.iter_spotify_liked_albums(
+        spotify2ytmusic.backend.copier(
+            spotify2ytmusic.backend.iter_spotify_liked_albums(
                 spotify_playlist_file="tests/playliststest.json"
             ),
             dst_pl_id="dst_test",
@@ -45,7 +45,7 @@ class TestCopier(unittest.TestCase):
             playlistId="dst_test"
         )
 
-    @patch("spotify2ytmusic.cli.YTMusic")
+    @patch("spotify2ytmusic.backend.YTMusic")
     def test_copier_liked_playlists(self, mock_ytmusic):
         # Setup mock responses
         mock_ytmusic_instance = MagicMock()
@@ -53,9 +53,9 @@ class TestCopier(unittest.TestCase):
         mock_ytmusic_instance.get_playlist.return_value = {"title": "Test Playlist"}
         mock_ytmusic_instance.add_playlist_items.return_value = None
 
-        spotify2ytmusic.cli.copier(
-            spotify2ytmusic.cli.iter_spotify_playlist(
-                None, spotify_playlist_file="tests/playliststest.json"
+        spotify2ytmusic.backend.copier(
+            spotify2ytmusic.backend.iter_spotify_playlist(
+                "68QlHDwCiXfhodLpS72iOx", spotify_playlist_file="tests/playliststest.json"
             ),
             dst_pl_id="dst_test",
             track_sleep=0,

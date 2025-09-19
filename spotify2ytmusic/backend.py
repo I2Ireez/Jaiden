@@ -351,6 +351,7 @@ def copier(
     dry_run: bool = False,
     track_sleep: float = 0.1,
     yt_search_algo: int = 0,
+    checkpoint_manager=None,
     *,
     yt: Optional[YTMusic] = None,
 ):
@@ -376,8 +377,21 @@ def copier(
     duplicate_count = 0
     error_count = 0
 
-    for src_track in src_tracks:
-        print(f"Spotify:   {src_track.title} - {src_track.artist} - {src_track.album}")
+    # Load processed indices if checkpoint exists
+    processed_indices = set()
+    if checkpoint_manager:
+        processed_indices = checkpoint_manager.get_processed_indices()
+        if processed_indices:
+            print(f"[RESUMING] Found {len(processed_indices)} already processed tracks")
+
+    # Enumerate tracks to get index for checkpoint tracking
+    for idx, src_track in enumerate(src_tracks):
+        # Skip if already processed
+        if idx in processed_indices:
+            print(f"[SKIP {idx+1}] {src_track.title} - {src_track.artist} - {src_track.album} (already processed)")
+            continue
+
+        print(f"[{idx+1}] Spotify:   {src_track.title} - {src_track.artist} - {src_track.album}")
 
         try:
             dst_track = lookup_song(
@@ -386,6 +400,14 @@ def copier(
         except Exception as e:
             print(f"ERROR: Unable to look up song on YTMusic: {e}")
             error_count += 1
+
+            # Save failed track to checkpoint
+            if checkpoint_manager:
+                checkpoint_manager.save_failed_track(idx, {
+                    "name": src_track.title,
+                    "artist": src_track.artist,
+                    "album": src_track.album
+                }, str(e))
             continue
 
         yt_artist_name = "<Unknown>"
@@ -412,6 +434,14 @@ def copier(
                         )
                     else:
                         yt.rate_song(dst_track["videoId"], "LIKE")
+
+                    # Save checkpoint after successful addition
+                    if checkpoint_manager:
+                        checkpoint_manager.save_progress(idx, dst_track["videoId"], {
+                            "name": src_track.title,
+                            "artist": src_track.artist,
+                            "album": src_track.album
+                        })
                     break
                 except Exception as e:
                     print(
@@ -438,6 +468,7 @@ def copy_playlist(
     yt_search_algo: int = 0,
     reverse_playlist: bool = True,
     privacy_status: str = "PRIVATE",
+    checkpoint_manager=None,
 ):
     """
     Copy a Spotify playlist to a YTMusic playlist
@@ -484,6 +515,7 @@ def copy_playlist(
         dry_run,
         track_sleep,
         yt_search_algo,
+        checkpoint_manager=checkpoint_manager,
         yt=yt,
     )
 
