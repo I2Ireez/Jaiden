@@ -543,8 +543,30 @@ def copy_all_playlists(
     spotify_pls = load_playlists_json()
     yt = get_ytmusic()
 
+    # Master checkpoint to track completed playlists
+    master_checkpoint = None
+    if resume or reset_checkpoint:
+        master_checkpoint = CheckpointManager("all_playlists_master")
+
+        if reset_checkpoint:
+            master_checkpoint.clear()
+            print("Master checkpoint cleared, will process all playlists from the beginning")
+
+    # Get list of completed playlist IDs
+    completed_playlists = set()
+    if master_checkpoint and master_checkpoint.checkpoint_path.exists():
+        checkpoint_data = master_checkpoint.load_checkpoint()
+        completed_playlists = set(checkpoint_data.get('completed_playlists', []))
+        if completed_playlists:
+            print(f"Resuming: {len(completed_playlists)} playlists already completed")
+
     for src_pl in spotify_pls["playlists"]:
         if str(src_pl.get("name")) == "Liked Songs":
+            continue
+
+        # Skip if this playlist is already completed
+        if src_pl['id'] in completed_playlists:
+            print(f"[SKIP] Playlist '{src_pl['name']}' already completed")
             continue
 
         pl_name = src_pl["name"]
@@ -589,10 +611,17 @@ def copy_all_playlists(
             checkpoint_manager=checkpoint_manager,
         )
 
-        # Clear checkpoint on successful completion
+        # Clear checkpoint on successful completion and update master checkpoint
         if checkpoint_manager and not dry_run:
             checkpoint_manager.clear()
             print(f"Transfer completed successfully for '{pl_name}', checkpoint cleared")
+
+        # Update master checkpoint to track this playlist as completed
+        if master_checkpoint and not dry_run:
+            completed_playlists.add(src_pl['id'])
+            master_checkpoint.save_checkpoint({
+                'completed_playlists': list(completed_playlists)
+            })
 
         print("\nPlaylist done!\n")
 

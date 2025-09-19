@@ -269,7 +269,7 @@ class CheckpointManager:
             "created_at": datetime.now().isoformat()
         }
 
-    def _save_checkpoint(self, data: Dict[str, Any]) -> None:
+    def save_checkpoint(self, data: Dict[str, Any]) -> None:
         """Save checkpoint data to file.
 
         Args:
@@ -369,7 +369,7 @@ class CheckpointManager:
             else:
                 failed_track["retry_attempts"] += 1
 
-        self._save_checkpoint(data)
+        self.save_checkpoint(data)
 
         return {
             "attempted_retry": True,
