@@ -25,6 +25,62 @@ class TestCheckpointIntegration(unittest.TestCase):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     # CLI Integration Tests
+    def test_load_liked_albums_command_has_resume_flag(self):
+        """Test that load_liked_albums command accepts --resume flag"""
+        from spotify2ytmusic import cli
+
+        # Get the load_liked_albums function
+        load_liked_albums_func = getattr(cli, 'load_liked_albums', None)
+        self.assertIsNotNone(load_liked_albums_func, "load_liked_albums function should exist")
+
+        # Read the source to check if --resume flag is handled
+        source = inspect.getsource(load_liked_albums_func)
+
+        # These should now pass because the flags are implemented
+        self.assertIn("--resume", source, "load_liked_albums should have --resume flag")
+        self.assertIn("args.resume", source, "load_liked_albums should handle resume argument")
+
+    def test_load_liked_albums_command_has_reset_checkpoint_flag(self):
+        """Test that load_liked_albums command accepts --reset-checkpoint flag"""
+        from spotify2ytmusic import cli
+
+        load_liked_albums_func = getattr(cli, 'load_liked_albums', None)
+        self.assertIsNotNone(load_liked_albums_func, "load_liked_albums function should exist")
+
+        source = inspect.getsource(load_liked_albums_func)
+
+        # These should now pass because the flags are implemented
+        self.assertIn("--reset-checkpoint", source, "load_liked_albums should have --reset-checkpoint flag")
+        self.assertIn("args.reset_checkpoint", source, "load_liked_albums should handle reset_checkpoint argument")
+
+    def test_copy_all_playlists_command_has_resume_flag(self):
+        """Test that copy_all_playlists command accepts --resume flag"""
+        from spotify2ytmusic import cli
+
+        # Get the copy_all_playlists function
+        copy_all_playlists_func = getattr(cli, 'copy_all_playlists', None)
+        self.assertIsNotNone(copy_all_playlists_func, "copy_all_playlists function should exist")
+
+        # Read the source to check if --resume flag is handled
+        source = inspect.getsource(copy_all_playlists_func)
+
+        # These should now pass because the flags are implemented
+        self.assertIn("--resume", source, "copy_all_playlists should have --resume flag")
+        self.assertIn("args.resume", source, "copy_all_playlists should handle resume argument")
+
+    def test_copy_all_playlists_command_has_reset_checkpoint_flag(self):
+        """Test that copy_all_playlists command accepts --reset-checkpoint flag"""
+        from spotify2ytmusic import cli
+
+        copy_all_playlists_func = getattr(cli, 'copy_all_playlists', None)
+        self.assertIsNotNone(copy_all_playlists_func, "copy_all_playlists function should exist")
+
+        source = inspect.getsource(copy_all_playlists_func)
+
+        # These should now pass because the flags are implemented
+        self.assertIn("--reset-checkpoint", source, "copy_all_playlists should have --reset-checkpoint flag")
+        self.assertIn("args.reset_checkpoint", source, "copy_all_playlists should handle reset_checkpoint argument")
+
     def test_copy_playlist_command_has_resume_flag(self):
         """Test that copy_playlist command accepts --resume flag"""
         # This will fail because copy_playlist doesn't have --resume flag yet
@@ -119,6 +175,47 @@ class TestCheckpointIntegration(unittest.TestCase):
 
         # Verify checkpoint was created for liked songs
         mock_checkpoint_class.assert_called_once_with("liked_songs")
+
+    @patch('sys.argv', ['test', '--resume'])
+    @patch('spotify2ytmusic.cli.backend')
+    @patch('spotify2ytmusic.cli.CheckpointManager')
+    def test_load_liked_albums_command_supports_checkpoint(self, mock_checkpoint_class, mock_backend):
+        """Test that load_liked_albums command supports checkpoint functionality"""
+        from spotify2ytmusic import cli
+
+        mock_checkpoint = Mock()
+        mock_checkpoint_class.return_value = mock_checkpoint
+        mock_checkpoint.checkpoint_path.exists.return_value = True
+        mock_checkpoint.get_statistics.return_value = {"successful": 25, "failed": 0, "last_index": 24}
+
+        # Mock backend.copier to avoid actual execution
+        mock_backend.copier.return_value = None
+        mock_backend.load_playlists_json.return_value = {"playlists": []}
+        mock_backend.iter_spotify_liked_albums.return_value = []
+
+        # Call load_liked_albums (it will parse sys.argv internally)
+        cli.load_liked_albums()
+
+        # Verify checkpoint was created for liked albums
+        mock_checkpoint_class.assert_called_once_with("liked_albums")
+
+    @patch('sys.argv', ['test', '--resume'])
+    @patch('spotify2ytmusic.cli.backend')
+    def test_copy_all_playlists_command_supports_checkpoint(self, mock_backend):
+        """Test that copy_all_playlists command supports checkpoint functionality"""
+        from spotify2ytmusic import cli
+
+        # Mock backend.copy_all_playlists to avoid actual execution
+        mock_backend.copy_all_playlists.return_value = None
+
+        # Call copy_all_playlists (it will parse sys.argv internally)
+        cli.copy_all_playlists()
+
+        # Verify that resume parameter was passed to backend
+        mock_backend.copy_all_playlists.assert_called_once()
+        call_args = mock_backend.copy_all_playlists.call_args
+        self.assertTrue(call_args.kwargs['resume'], "resume should be True")
+        self.assertFalse(call_args.kwargs['reset_checkpoint'], "reset_checkpoint should be False")
 
     def test_cli_imports_checkpoint_manager(self):
         """Test that CLI module imports CheckpointManager"""

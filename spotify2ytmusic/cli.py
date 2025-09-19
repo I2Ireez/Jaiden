@@ -139,10 +139,32 @@ def load_liked_albums():
             default=0,
             help="Algorithm to use for search (0 = exact, 1 = extended, 2 = approximate)",
         )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume transfer from last checkpoint if available. Shows progress statistics and continues from the last processed track.",
+        )
+        parser.add_argument(
+            "--reset-checkpoint",
+            action="store_true",
+            help="Clear existing checkpoint and start fresh. Use this to restart the entire transfer process.",
+        )
 
         return parser.parse_args()
 
     args = parse_arguments()
+
+    # Handle checkpoint for liked albums
+    checkpoint_manager = None
+    if args.resume or args.reset_checkpoint:
+        checkpoint_manager = CheckpointManager("liked_albums")
+
+        if args.reset_checkpoint:
+            checkpoint_manager.clear()
+            print("Checkpoint cleared, starting fresh")
+        elif args.resume and checkpoint_manager.checkpoint_path.exists():
+            stats = checkpoint_manager.get_statistics()
+            print(f"Resuming liked albums transfer: {stats['successful']} already done")
 
     spotify_pls = backend.load_playlists_json()
 
@@ -154,7 +176,13 @@ def load_liked_albums():
         args.dry_run,
         args.track_sleep,
         args.algo,
+        checkpoint_manager=checkpoint_manager,
     )
+
+    # Clear checkpoint on successful completion
+    if checkpoint_manager and not args.dry_run:
+        checkpoint_manager.clear()
+        print("Transfer completed successfully, checkpoint cleared")
 
 
 def load_liked():
@@ -382,6 +410,16 @@ def copy_all_playlists():
             default="PRIVATE",
             help="The privacy seting of created playlists (PRIVATE, PUBLIC, UNLISTED, default PRIVATE)",
         )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume transfer from last checkpoint if available. Shows progress statistics and continues from the last processed track.",
+        )
+        parser.add_argument(
+            "--reset-checkpoint",
+            action="store_true",
+            help="Clear existing checkpoint and start fresh. Use this to restart the entire transfer process.",
+        )
 
         return parser.parse_args()
 
@@ -392,6 +430,8 @@ def copy_all_playlists():
         spotify_playlists_encoding=args.spotify_playlists_encoding,
         reverse_playlist=not args.no_reverse_playlist,
         privacy_status=args.privacy,
+        resume=args.resume,
+        reset_checkpoint=args.reset_checkpoint,
     )
 
 

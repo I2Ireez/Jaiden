@@ -11,6 +11,8 @@ from typing import Optional, Union, Iterator, Dict, List
 from collections import namedtuple
 from dataclasses import dataclass, field
 
+from .checkpoint import CheckpointManager
+
 
 SongInfo = namedtuple("SongInfo", ["title", "artist", "album"])
 
@@ -79,7 +81,8 @@ def _ytmusic_create_playlist(
 
 def load_playlists_json(filename: str = "playlists.json", encoding: str = "utf-8"):
     """Load the `playlists.json` Spotify playlist file"""
-    return json.load(open(filename, "r", encoding=encoding))
+    with open(filename, "r", encoding=encoding) as f:
+        return json.load(f)
 
 
 def create_playlist(pl_name: str, privacy_status: str = "PRIVATE") -> None:
@@ -188,21 +191,25 @@ def get_playlist_id_by_name(yt: YTMusic, title: str) -> Optional[str]:
     #  https://github.com/sigma67/ytmusicapi/issues/539
     try:
         playlists = yt.get_library_playlists(limit=5000)
-    except KeyError as e:
+
+        # Check if playlists is None or empty
+        if playlists is None:
+            raise ValueError("get_library_playlists returned None - possible authentication issue")
+
+    except (KeyError, TypeError, ValueError) as e:
         print("=" * 60)
-        print(f"Attempting to look up playlist '{title}' failed with KeyError: {e}")
+        print(f"ERROR: Failed to look up playlist '{title}' due to error: {e}")
         print(
-            "This is a bug in ytmusicapi that prevents 'copy_all_playlists' from working."
+            "This is likely a bug in ytmusicapi or an authentication issue."
         )
         print(
-            "You will need to manually copy playlists using s2yt_list_playlists and s2yt_copy_playlist"
+            "Cannot continue without being able to list existing playlists."
         )
         print(
-            "until this bug gets resolved.  Try `pip install --upgrade ytmusicapi` just to verify"
+            "Please try: `pip install --upgrade ytmusicapi` and re-authenticate with `ytmusicapi oauth`"
         )
-        print("you have the latest version of that library.")
         print("=" * 60)
-        raise
+        sys.exit(1)  # Exit gracefully instead of raising exception
 
     for pl in playlists:
         if pl["title"] == title:
@@ -527,6 +534,8 @@ def copy_all_playlists(
     yt_search_algo: int = 0,
     reverse_playlist: bool = True,
     privacy_status: str = "PRIVATE",
+    resume: bool = False,
+    reset_checkpoint: bool = False,
 ):
     """
     Copy all Spotify playlists (except Liked Songs) to YTMusic playlists
@@ -541,6 +550,18 @@ def copy_all_playlists(
         pl_name = src_pl["name"]
         if pl_name == "":
             pl_name = f"Unnamed Spotify Playlist {src_pl['id']}"
+
+        # Handle checkpoint for each playlist
+        checkpoint_manager = None
+        if resume or reset_checkpoint:
+            checkpoint_manager = CheckpointManager(f"all_playlists_{src_pl['id']}")
+
+            if reset_checkpoint:
+                checkpoint_manager.clear()
+                print(f"Checkpoint cleared for playlist '{pl_name}', starting fresh")
+            elif resume and checkpoint_manager.checkpoint_path.exists():
+                stats = checkpoint_manager.get_statistics()
+                print(f"Resuming playlist '{pl_name}' transfer: {stats['successful']} tracks already done")
 
         dst_pl_id = get_playlist_id_by_name(yt, pl_name)
         print(f"Looking up playlist '{pl_name}': id={dst_pl_id}")
@@ -565,7 +586,14 @@ def copy_all_playlists(
             dry_run,
             track_sleep,
             yt_search_algo,
+            checkpoint_manager=checkpoint_manager,
         )
+
+        # Clear checkpoint on successful completion
+        if checkpoint_manager and not dry_run:
+            checkpoint_manager.clear()
+            print(f"Transfer completed successfully for '{pl_name}', checkpoint cleared")
+
         print("\nPlaylist done!\n")
 
     print("All done!")
