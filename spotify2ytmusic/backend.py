@@ -7,9 +7,13 @@ import time
 import re
 
 from ytmusicapi import YTMusic
+from ytmusicapi.exceptions import YTMusicServerError
 from typing import Optional, Union, Iterator, Dict, List
 from collections import namedtuple
 from dataclasses import dataclass, field
+
+from .checkpoint import CheckpointManager
+from .constants import YTMUSIC_MAX_PLAYLIST_SIZE
 
 
 SongInfo = namedtuple("SongInfo", ["title", "artist", "album"])
@@ -79,7 +83,8 @@ def _ytmusic_create_playlist(
 
 def load_playlists_json(filename: str = "playlists.json", encoding: str = "utf-8"):
     """Load the `playlists.json` Spotify playlist file"""
-    return json.load(open(filename, "r", encoding=encoding))
+    with open(filename, "r", encoding=encoding) as f:
+        return json.load(f)
 
 
 def create_playlist(pl_name: str, privacy_status: str = "PRIVATE") -> None:
@@ -188,21 +193,25 @@ def get_playlist_id_by_name(yt: YTMusic, title: str) -> Optional[str]:
     #  https://github.com/sigma67/ytmusicapi/issues/539
     try:
         playlists = yt.get_library_playlists(limit=5000)
-    except KeyError as e:
+
+        # Check if playlists is None or empty
+        if playlists is None:
+            raise ValueError("get_library_playlists returned None - possible authentication issue")
+
+    except (KeyError, TypeError, ValueError) as e:
         print("=" * 60)
-        print(f"Attempting to look up playlist '{title}' failed with KeyError: {e}")
+        print(f"ERROR: Failed to look up playlist '{title}' due to error: {e}")
         print(
-            "This is a bug in ytmusicapi that prevents 'copy_all_playlists' from working."
+            "This is likely a bug in ytmusicapi or an authentication issue."
         )
         print(
-            "You will need to manually copy playlists using s2yt_list_playlists and s2yt_copy_playlist"
+            "Cannot continue without being able to list existing playlists."
         )
         print(
-            "until this bug gets resolved.  Try `pip install --upgrade ytmusicapi` just to verify"
+            "Please try: `pip install --upgrade ytmusicapi` and re-authenticate with `ytmusicapi oauth`"
         )
-        print("you have the latest version of that library.")
         print("=" * 60)
-        raise
+        sys.exit(1)  # Exit gracefully instead of raising exception
 
     for pl in playlists:
         if pl["title"] == title:
@@ -351,11 +360,31 @@ def copier(
     dry_run: bool = False,
     track_sleep: float = 0.1,
     yt_search_algo: int = 0,
+    checkpoint_manager=None,
+    max_tracks: int = YTMUSIC_MAX_PLAYLIST_SIZE,
     *,
     yt: Optional[YTMusic] = None,
 ):
     """
-    @@@
+    Copy tracks from Spotify to YouTube Music with playlist size limits.
+
+    Processes tracks sequentially, respecting YouTube Music's playlist size
+    limitations. Tracks exceeding the limit are logged as failed rather than
+    causing the entire operation to fail.
+
+    Args:
+        src_tracks: Iterator of SongInfo objects to copy
+        dst_pl_id: YouTube Music playlist ID to copy to
+        dry_run: If True, don't actually add tracks
+        track_sleep: Seconds to sleep between track additions
+        yt_search_algo: Search algorithm to use (0=exact, 1=extended, 2=approximate)
+        checkpoint_manager: Manager for tracking progress and failures
+        max_tracks: Maximum tracks per playlist (default: 5000, YouTube Music limit)
+        yt: YouTube Music client instance
+
+    Note:
+        Tracks beyond max_tracks are automatically logged as failed with
+        'playlist_size_exceeded' error and skipped without API calls.
     """
     if yt is None:
         yt = get_ytmusic()
@@ -376,8 +405,32 @@ def copier(
     duplicate_count = 0
     error_count = 0
 
-    for src_track in src_tracks:
-        print(f"Spotify:   {src_track.title} - {src_track.artist} - {src_track.album}")
+    # Load processed indices if checkpoint exists
+    processed_indices = set()
+    if checkpoint_manager:
+        processed_indices = checkpoint_manager.get_processed_indices()
+        if processed_indices:
+            print(f"[RESUMING] Found {len(processed_indices)} already processed tracks")
+
+    # Enumerate tracks to get index for checkpoint tracking
+    for idx, src_track in enumerate(src_tracks):
+        # Skip if already processed
+        if idx in processed_indices:
+            print(f"[SKIP {idx+1}] {src_track.title} - {src_track.artist} - {src_track.album} (already processed)")
+            continue
+
+        # Skip if exceeds max tracks limit
+        if idx >= max_tracks:
+            print(f"[SKIP {idx+1}] {src_track.title} - {src_track.artist} - {src_track.album} (exceeds {max_tracks} track limit)")
+            if checkpoint_manager:
+                checkpoint_manager.save_failed_track(idx, {
+                    "name": src_track.title,
+                    "artist": src_track.artist,
+                    "album": src_track.album
+                }, f"playlist_size_exceeded: Track {idx+1} exceeds YouTube Music {max_tracks} track limit")
+            continue
+
+        print(f"[{idx+1}] Spotify:   {src_track.title} - {src_track.artist} - {src_track.album}")
 
         try:
             dst_track = lookup_song(
@@ -386,6 +439,14 @@ def copier(
         except Exception as e:
             print(f"ERROR: Unable to look up song on YTMusic: {e}")
             error_count += 1
+
+            # Save failed track to checkpoint
+            if checkpoint_manager:
+                checkpoint_manager.save_failed_track(idx, {
+                    "name": src_track.title,
+                    "artist": src_track.artist,
+                    "album": src_track.album
+                }, str(e))
             continue
 
         yt_artist_name = "<Unknown>"
@@ -412,7 +473,29 @@ def copier(
                         )
                     else:
                         yt.rate_song(dst_track["videoId"], "LIKE")
+
+                    # Save checkpoint after successful addition
+                    if checkpoint_manager:
+                        checkpoint_manager.save_progress(idx, dst_track["videoId"], {
+                            "name": src_track.title,
+                            "artist": src_track.artist,
+                            "album": src_track.album
+                        })
                     break
+                except YTMusicServerError as e:
+                    if "Maximum playlist size exceeded" in str(e):
+                        print(f"ERROR: YouTube Music playlist size limit reached at track {idx+1}")
+                        if checkpoint_manager:
+                            checkpoint_manager.save_failed_track(idx, {
+                                "name": src_track.title,
+                                "artist": src_track.artist,
+                                "album": src_track.album
+                            }, f"playlist_size_exceeded: {str(e)}")
+                        print("Stopping due to playlist size limit")
+                        return  # Exit copier function entirely
+                    else:
+                        # Re-raise other YTMusic errors (network issues, etc.)
+                        raise
                 except Exception as e:
                     print(
                         f"ERROR: (Retrying add_playlist_items: {dst_pl_id} {dst_track['videoId']}) {e} in {exception_sleep} seconds"
@@ -438,6 +521,7 @@ def copy_playlist(
     yt_search_algo: int = 0,
     reverse_playlist: bool = True,
     privacy_status: str = "PRIVATE",
+    checkpoint_manager=None,
 ):
     """
     Copy a Spotify playlist to a YTMusic playlist
@@ -484,6 +568,8 @@ def copy_playlist(
         dry_run,
         track_sleep,
         yt_search_algo,
+        checkpoint_manager=checkpoint_manager,
+        max_tracks=max_tracks,
         yt=yt,
     )
 
@@ -495,6 +581,9 @@ def copy_all_playlists(
     yt_search_algo: int = 0,
     reverse_playlist: bool = True,
     privacy_status: str = "PRIVATE",
+    resume: bool = False,
+    reset_checkpoint: bool = False,
+    max_tracks: int = YTMUSIC_MAX_PLAYLIST_SIZE,
 ):
     """
     Copy all Spotify playlists (except Liked Songs) to YTMusic playlists
@@ -502,13 +591,47 @@ def copy_all_playlists(
     spotify_pls = load_playlists_json()
     yt = get_ytmusic()
 
+    # Master checkpoint to track completed playlists
+    master_checkpoint = None
+    if resume or reset_checkpoint:
+        master_checkpoint = CheckpointManager("all_playlists_master")
+
+        if reset_checkpoint:
+            master_checkpoint.clear()
+            print("Master checkpoint cleared, will process all playlists from the beginning")
+
+    # Get list of completed playlist IDs
+    completed_playlists = set()
+    if master_checkpoint and master_checkpoint.checkpoint_path.exists():
+        checkpoint_data = master_checkpoint.load_checkpoint()
+        completed_playlists = set(checkpoint_data.get('completed_playlists', []))
+        if completed_playlists:
+            print(f"Resuming: {len(completed_playlists)} playlists already completed")
+
     for src_pl in spotify_pls["playlists"]:
         if str(src_pl.get("name")) == "Liked Songs":
+            continue
+
+        # Skip if this playlist is already completed
+        if src_pl['id'] in completed_playlists:
+            print(f"[SKIP] Playlist '{src_pl['name']}' already completed")
             continue
 
         pl_name = src_pl["name"]
         if pl_name == "":
             pl_name = f"Unnamed Spotify Playlist {src_pl['id']}"
+
+        # Handle checkpoint for each playlist
+        checkpoint_manager = None
+        if resume or reset_checkpoint:
+            checkpoint_manager = CheckpointManager(f"all_playlists_{src_pl['id']}")
+
+            if reset_checkpoint:
+                checkpoint_manager.clear()
+                print(f"Checkpoint cleared for playlist '{pl_name}', starting fresh")
+            elif resume and checkpoint_manager.checkpoint_path.exists():
+                stats = checkpoint_manager.get_statistics()
+                print(f"Resuming playlist '{pl_name}' transfer: {stats['successful']} tracks already done")
 
         dst_pl_id = get_playlist_id_by_name(yt, pl_name)
         print(f"Looking up playlist '{pl_name}': id={dst_pl_id}")
@@ -533,7 +656,22 @@ def copy_all_playlists(
             dry_run,
             track_sleep,
             yt_search_algo,
+            checkpoint_manager=checkpoint_manager,
+            max_tracks=max_tracks,
         )
+
+        # Clear checkpoint on successful completion and update master checkpoint
+        if checkpoint_manager and not dry_run:
+            checkpoint_manager.clear()
+            print(f"Transfer completed successfully for '{pl_name}', checkpoint cleared")
+
+        # Update master checkpoint to track this playlist as completed
+        if master_checkpoint and not dry_run:
+            completed_playlists.add(src_pl['id'])
+            master_checkpoint.save_checkpoint({
+                'completed_playlists': list(completed_playlists)
+            })
+
         print("\nPlaylist done!\n")
 
     print("All done!")

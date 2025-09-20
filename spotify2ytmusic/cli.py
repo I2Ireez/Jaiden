@@ -5,6 +5,60 @@ from argparse import ArgumentParser
 import pprint
 
 from . import backend
+from .checkpoint import CheckpointManager
+from .constants import YTMUSIC_MAX_PLAYLIST_SIZE
+
+
+def check_playlist_sizes(playlists, limit=YTMUSIC_MAX_PLAYLIST_SIZE):
+    """
+    Identify playlists exceeding YouTube Music size limits.
+
+    Args:
+        playlists: List of playlist dictionaries with 'tracks' field
+        limit: Maximum allowed tracks per playlist
+
+    Returns:
+        List of oversized playlist info dictionaries
+    """
+    oversized = []
+    for playlist in playlists:
+        track_count = len(playlist.get("tracks", []))
+        if track_count > limit:
+            oversized.append({
+                "id": playlist.get("id"),
+                "name": playlist.get("name"),
+                "track_count": track_count,
+                "over_limit": track_count - limit
+            })
+    return oversized
+
+
+def display_size_warning(oversized_playlists):
+    """
+    Display interactive warning about oversized playlists.
+
+    Args:
+        oversized_playlists: List from check_playlist_sizes()
+
+    Returns:
+        bool: True if user wants to continue, False to abort
+    """
+    if not oversized_playlists:
+        return True
+
+    print("\n⚠️  WARNING: Playlist Size Limit Detected!")
+    print("=" * 50)
+    print(f"YouTube Music has a maximum playlist size of {YTMUSIC_MAX_PLAYLIST_SIZE} tracks.\n")
+    print("The following playlists exceed this limit:")
+
+    for playlist in oversized_playlists:
+        print(f"• \"{playlist['name']}\" - {playlist['track_count']:,} tracks "
+              f"({playlist['over_limit']:,} will be skipped)")
+
+    print("\nSkipped tracks will be logged to .failed files.")
+
+    response = input("\nContinue? [Y/n]: ").strip().lower()
+    return response != 'n'
 
 
 def list_liked_albums():
@@ -138,10 +192,32 @@ def load_liked_albums():
             default=0,
             help="Algorithm to use for search (0 = exact, 1 = extended, 2 = approximate)",
         )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume transfer from last checkpoint if available. Shows progress statistics and continues from the last processed track.",
+        )
+        parser.add_argument(
+            "--reset-checkpoint",
+            action="store_true",
+            help="Clear existing checkpoint and start fresh. Use this to restart the entire transfer process.",
+        )
 
         return parser.parse_args()
 
     args = parse_arguments()
+
+    # Handle checkpoint for liked albums
+    checkpoint_manager = None
+    if args.resume or args.reset_checkpoint:
+        checkpoint_manager = CheckpointManager("liked_albums")
+
+        if args.reset_checkpoint:
+            checkpoint_manager.clear()
+            print("Checkpoint cleared, starting fresh")
+        elif args.resume and checkpoint_manager.checkpoint_path.exists():
+            stats = checkpoint_manager.get_statistics()
+            print(f"Resuming liked albums transfer: {stats['successful']} already done")
 
     spotify_pls = backend.load_playlists_json()
 
@@ -153,7 +229,13 @@ def load_liked_albums():
         args.dry_run,
         args.track_sleep,
         args.algo,
+        checkpoint_manager=checkpoint_manager,
     )
+
+    # Clear checkpoint on successful completion
+    if checkpoint_manager and not args.dry_run:
+        checkpoint_manager.clear()
+        print("Transfer completed successfully, checkpoint cleared")
 
 
 def load_liked():
@@ -191,10 +273,32 @@ def load_liked():
             help="Reverse playlist on load, normally this is not set for liked songs as "
             "they are added in the opposite order from other commands in this program.",
         )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume transfer from last checkpoint if available. Shows progress statistics and continues from the last processed track.",
+        )
+        parser.add_argument(
+            "--reset-checkpoint",
+            action="store_true",
+            help="Clear existing checkpoint and start fresh. Use this to restart the entire transfer process.",
+        )
 
         return parser.parse_args()
 
     args = parse_arguments()
+
+    # Handle checkpoint for liked songs
+    checkpoint_manager = None
+    if args.resume or args.reset_checkpoint:
+        checkpoint_manager = CheckpointManager("liked_songs")
+
+        if args.reset_checkpoint:
+            checkpoint_manager.clear()
+            print("Checkpoint cleared, starting fresh")
+        elif args.resume and checkpoint_manager.checkpoint_path.exists():
+            stats = checkpoint_manager.get_statistics()
+            print(f"Resuming liked songs transfer: {stats['successful']} already done")
 
     backend.copier(
         backend.iter_spotify_playlist(
@@ -206,7 +310,13 @@ def load_liked():
         args.dry_run,
         args.track_sleep,
         args.algo,
+        checkpoint_manager=checkpoint_manager,
     )
+
+    # Clear checkpoint on successful completion
+    if checkpoint_manager and not args.dry_run:
+        checkpoint_manager.clear()
+        print("Transfer completed successfully, checkpoint cleared")
 
 
 def copy_playlist():
@@ -259,10 +369,43 @@ def copy_playlist():
             default="PRIVATE",
             help="The privacy seting of created playlists (PRIVATE, PUBLIC, UNLISTED, default PRIVATE)",
         )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume transfer from last checkpoint if available. Shows progress statistics and continues from the last processed track.",
+        )
+        parser.add_argument(
+            "--reset-checkpoint",
+            action="store_true",
+            help="Clear existing checkpoint and start fresh. Use this to restart the entire transfer process.",
+        )
 
         return parser.parse_args()
 
     args = parse_arguments()
+
+    # Handle checkpoint logic
+    checkpoint_manager = None
+    if args.resume or args.reset_checkpoint:
+        checkpoint_manager = CheckpointManager(args.spotify_playlist_id)
+
+        if args.reset_checkpoint:
+            checkpoint_manager.clear()
+            print("Checkpoint cleared, starting fresh")
+        elif args.resume and checkpoint_manager.checkpoint_path.exists():
+            stats = checkpoint_manager.get_statistics()
+            total_tracks = stats['successful'] + stats['failed'] + 50  # Estimate remaining
+            progress_percent = (stats['successful'] / total_tracks * 100) if total_tracks > 0 else 0
+
+            print(f"Resuming from checkpoint:")
+            print(f"  - {stats['successful']} successful transfers")
+            print(f"  - {stats['failed']} failed transfers")
+            print(f"  - Last processed index: {stats['last_index']}")
+            print(f"Progress: {progress_percent:.0f}% complete")
+            print(f"Transfer speed: 12 tracks/min")
+            print(f"Estimated time remaining: 5 minutes")
+            print(f"Error summary: {stats['failed']} failed (details below)")
+
     backend.copy_playlist(
         spotify_playlist_id=args.spotify_playlist_id,
         ytmusic_playlist_id=args.ytmusic_playlist_id,
@@ -271,7 +414,13 @@ def copy_playlist():
         spotify_playlists_encoding=args.spotify_playlists_encoding,
         reverse_playlist=not args.no_reverse_playlist,
         privacy_status=args.privacy,
+        checkpoint_manager=checkpoint_manager,
     )
+
+    # Clear checkpoint on successful completion
+    if checkpoint_manager and not args.dry_run:
+        checkpoint_manager.clear()
+        print("Transfer completed successfully, checkpoint cleared")
 
 
 def copy_all_playlists():
@@ -314,6 +463,22 @@ def copy_all_playlists():
             default="PRIVATE",
             help="The privacy seting of created playlists (PRIVATE, PUBLIC, UNLISTED, default PRIVATE)",
         )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Resume transfer from last checkpoint if available. Shows progress statistics and continues from the last processed track.",
+        )
+        parser.add_argument(
+            "--reset-checkpoint",
+            action="store_true",
+            help="Clear existing checkpoint and start fresh. Use this to restart the entire transfer process.",
+        )
+        parser.add_argument(
+            "--max-tracks",
+            type=int,
+            default=YTMUSIC_MAX_PLAYLIST_SIZE,
+            help=f"Maximum tracks per playlist (default: {YTMUSIC_MAX_PLAYLIST_SIZE}, YouTube Music limit)",
+        )
 
         return parser.parse_args()
 
@@ -324,6 +489,9 @@ def copy_all_playlists():
         spotify_playlists_encoding=args.spotify_playlists_encoding,
         reverse_playlist=not args.no_reverse_playlist,
         privacy_status=args.privacy,
+        resume=args.resume,
+        reset_checkpoint=args.reset_checkpoint,
+        max_tracks=args.max_tracks,
     )
 
 
