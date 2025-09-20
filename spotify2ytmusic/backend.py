@@ -7,11 +7,13 @@ import time
 import re
 
 from ytmusicapi import YTMusic
+from ytmusicapi.exceptions import YTMusicServerError
 from typing import Optional, Union, Iterator, Dict, List
 from collections import namedtuple
 from dataclasses import dataclass, field
 
 from .checkpoint import CheckpointManager
+from .constants import YTMUSIC_MAX_PLAYLIST_SIZE
 
 
 SongInfo = namedtuple("SongInfo", ["title", "artist", "album"])
@@ -359,11 +361,30 @@ def copier(
     track_sleep: float = 0.1,
     yt_search_algo: int = 0,
     checkpoint_manager=None,
+    max_tracks: int = YTMUSIC_MAX_PLAYLIST_SIZE,
     *,
     yt: Optional[YTMusic] = None,
 ):
     """
-    @@@
+    Copy tracks from Spotify to YouTube Music with playlist size limits.
+
+    Processes tracks sequentially, respecting YouTube Music's playlist size
+    limitations. Tracks exceeding the limit are logged as failed rather than
+    causing the entire operation to fail.
+
+    Args:
+        src_tracks: Iterator of SongInfo objects to copy
+        dst_pl_id: YouTube Music playlist ID to copy to
+        dry_run: If True, don't actually add tracks
+        track_sleep: Seconds to sleep between track additions
+        yt_search_algo: Search algorithm to use (0=exact, 1=extended, 2=approximate)
+        checkpoint_manager: Manager for tracking progress and failures
+        max_tracks: Maximum tracks per playlist (default: 5000, YouTube Music limit)
+        yt: YouTube Music client instance
+
+    Note:
+        Tracks beyond max_tracks are automatically logged as failed with
+        'playlist_size_exceeded' error and skipped without API calls.
     """
     if yt is None:
         yt = get_ytmusic()
@@ -396,6 +417,17 @@ def copier(
         # Skip if already processed
         if idx in processed_indices:
             print(f"[SKIP {idx+1}] {src_track.title} - {src_track.artist} - {src_track.album} (already processed)")
+            continue
+
+        # Skip if exceeds max tracks limit
+        if idx >= max_tracks:
+            print(f"[SKIP {idx+1}] {src_track.title} - {src_track.artist} - {src_track.album} (exceeds {max_tracks} track limit)")
+            if checkpoint_manager:
+                checkpoint_manager.save_failed_track(idx, {
+                    "name": src_track.title,
+                    "artist": src_track.artist,
+                    "album": src_track.album
+                }, f"playlist_size_exceeded: Track {idx+1} exceeds YouTube Music {max_tracks} track limit")
             continue
 
         print(f"[{idx+1}] Spotify:   {src_track.title} - {src_track.artist} - {src_track.album}")
@@ -450,6 +482,20 @@ def copier(
                             "album": src_track.album
                         })
                     break
+                except YTMusicServerError as e:
+                    if "Maximum playlist size exceeded" in str(e):
+                        print(f"ERROR: YouTube Music playlist size limit reached at track {idx+1}")
+                        if checkpoint_manager:
+                            checkpoint_manager.save_failed_track(idx, {
+                                "name": src_track.title,
+                                "artist": src_track.artist,
+                                "album": src_track.album
+                            }, f"playlist_size_exceeded: {str(e)}")
+                        print("Stopping due to playlist size limit")
+                        return  # Exit copier function entirely
+                    else:
+                        # Re-raise other YTMusic errors (network issues, etc.)
+                        raise
                 except Exception as e:
                     print(
                         f"ERROR: (Retrying add_playlist_items: {dst_pl_id} {dst_track['videoId']}) {e} in {exception_sleep} seconds"
@@ -523,6 +569,7 @@ def copy_playlist(
         track_sleep,
         yt_search_algo,
         checkpoint_manager=checkpoint_manager,
+        max_tracks=max_tracks,
         yt=yt,
     )
 
@@ -536,6 +583,7 @@ def copy_all_playlists(
     privacy_status: str = "PRIVATE",
     resume: bool = False,
     reset_checkpoint: bool = False,
+    max_tracks: int = YTMUSIC_MAX_PLAYLIST_SIZE,
 ):
     """
     Copy all Spotify playlists (except Liked Songs) to YTMusic playlists
@@ -609,6 +657,7 @@ def copy_all_playlists(
             track_sleep,
             yt_search_algo,
             checkpoint_manager=checkpoint_manager,
+            max_tracks=max_tracks,
         )
 
         # Clear checkpoint on successful completion and update master checkpoint

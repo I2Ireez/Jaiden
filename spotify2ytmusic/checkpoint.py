@@ -163,12 +163,18 @@ class CheckpointManager:
         return self._load_checkpoint_safe()
 
     def clear(self) -> None:
-        """Remove all checkpoint files."""
-        # Remove all checkpoint files
-        for file_path in [self.checkpoint_path, self.processed_file_path,
-                         self.failed_file_path, self.log_file_path]:
+        """Remove checkpoint metadata files but preserve track record files.
+
+        Preserves .processed and .failed files as they contain valuable
+        track history that should persist across runs. Only removes
+        temporary metadata and log files.
+        """
+        # Only remove metadata and log files - NOT the processed or failed files
+        # These contain valuable user data that needs to be preserved
+        for file_path in [self.checkpoint_path, self.log_file_path]:
             if file_path.exists():
                 file_path.unlink()
+        # Note: processed_file_path and failed_file_path are intentionally NOT cleared
 
     def get_statistics(self) -> Dict[str, int]:
         """Get transfer statistics from checkpoint.

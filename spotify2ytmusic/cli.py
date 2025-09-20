@@ -6,6 +6,59 @@ import pprint
 
 from . import backend
 from .checkpoint import CheckpointManager
+from .constants import YTMUSIC_MAX_PLAYLIST_SIZE
+
+
+def check_playlist_sizes(playlists, limit=YTMUSIC_MAX_PLAYLIST_SIZE):
+    """
+    Identify playlists exceeding YouTube Music size limits.
+
+    Args:
+        playlists: List of playlist dictionaries with 'tracks' field
+        limit: Maximum allowed tracks per playlist
+
+    Returns:
+        List of oversized playlist info dictionaries
+    """
+    oversized = []
+    for playlist in playlists:
+        track_count = len(playlist.get("tracks", []))
+        if track_count > limit:
+            oversized.append({
+                "id": playlist.get("id"),
+                "name": playlist.get("name"),
+                "track_count": track_count,
+                "over_limit": track_count - limit
+            })
+    return oversized
+
+
+def display_size_warning(oversized_playlists):
+    """
+    Display interactive warning about oversized playlists.
+
+    Args:
+        oversized_playlists: List from check_playlist_sizes()
+
+    Returns:
+        bool: True if user wants to continue, False to abort
+    """
+    if not oversized_playlists:
+        return True
+
+    print("\n⚠️  WARNING: Playlist Size Limit Detected!")
+    print("=" * 50)
+    print(f"YouTube Music has a maximum playlist size of {YTMUSIC_MAX_PLAYLIST_SIZE} tracks.\n")
+    print("The following playlists exceed this limit:")
+
+    for playlist in oversized_playlists:
+        print(f"• \"{playlist['name']}\" - {playlist['track_count']:,} tracks "
+              f"({playlist['over_limit']:,} will be skipped)")
+
+    print("\nSkipped tracks will be logged to .failed files.")
+
+    response = input("\nContinue? [Y/n]: ").strip().lower()
+    return response != 'n'
 
 
 def list_liked_albums():
@@ -420,6 +473,12 @@ def copy_all_playlists():
             action="store_true",
             help="Clear existing checkpoint and start fresh. Use this to restart the entire transfer process.",
         )
+        parser.add_argument(
+            "--max-tracks",
+            type=int,
+            default=YTMUSIC_MAX_PLAYLIST_SIZE,
+            help=f"Maximum tracks per playlist (default: {YTMUSIC_MAX_PLAYLIST_SIZE}, YouTube Music limit)",
+        )
 
         return parser.parse_args()
 
@@ -432,6 +491,7 @@ def copy_all_playlists():
         privacy_status=args.privacy,
         resume=args.resume,
         reset_checkpoint=args.reset_checkpoint,
+        max_tracks=args.max_tracks,
     )
 
 
