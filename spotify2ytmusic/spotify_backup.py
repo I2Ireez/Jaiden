@@ -20,6 +20,7 @@ class SpotifyAPI:
     """Class to interact with the Spotify API using an OAuth token."""
 
     BASE_URL = "https://api.spotify.com/v1/"
+    LOCALHOST = "127.0.0.1"
 
     def __init__(self, auth):
         self._auth = auth
@@ -39,6 +40,17 @@ class SpotifyAPI:
     def list(self, url, params={}):
         """Fetch paginated resources and return as a combined list."""
         response = self.get(url, params)
+
+        # Handle special case for /me/following which has a different structure
+        if url == "me/following" and "artists" in response:
+            items = response["artists"]["items"]
+
+            while response["artists"]["next"]:
+                response = self.get(response["artists"]["next"])
+                items += response["artists"]["items"]
+            return {"artists": {"items": items}}
+
+        # Normal case for other endpoints
         items = response["items"]
 
         while response["next"]:
@@ -47,14 +59,14 @@ class SpotifyAPI:
         return items
 
     @staticmethod
-    def authorize(client_id, scope):
+    def authorize(client_id, scope, host="127.0.0.1"):
         """Open a browser for user authorization and return SpotifyAPI instance."""
-        redirect_uri = f"http://127.0.0.1:{SpotifyAPI._SERVER_PORT}/redirect"
+        redirect_uri = f"http://{SpotifyAPI.LOCALHOST}:{SpotifyAPI._SERVER_PORT}/redirect"
         url = SpotifyAPI._construct_auth_url(client_id, scope, redirect_uri)
         print(f"Open this link if the browser doesn't open automatically: {url}")
         webbrowser.open(url)
 
-        server = SpotifyAPI._AuthorizationServer("127.0.0.1", SpotifyAPI._SERVER_PORT)
+        server = SpotifyAPI._AuthorizationServer(host, SpotifyAPI._SERVER_PORT)
         try:
             while True:
                 server.handle_request()
@@ -140,6 +152,7 @@ def fetch_user_data(spotify, dump):
     """Fetch playlists and liked songs based on the dump parameter."""
     playlists = []
     liked_albums = []
+    followed_artists = []
 
     if "liked" in dump:
         print("Loading liked albums and songs...")
@@ -157,15 +170,26 @@ def fetch_user_data(spotify, dump):
             )
         playlists.extend(playlist_data)
 
-    return playlists, liked_albums
+    if "artists" in dump or "following" in dump:
+        print("Loading followed artists...")
+        # For followed artists, we use a higher limit to optimize the number of API calls
+        # Pagination is handled automatically in the list method
+        artists_data = spotify.list("me/following", {"type": "artist", "limit": 50})
+        # Extract only the artist names into an array
+        if "artists" in artists_data and "items" in artists_data["artists"]:
+            followed_artists = [artist["name"] for artist in artists_data["artists"]["items"]]
+        else:
+            followed_artists = []
+
+    return playlists, liked_albums, followed_artists
 
 
-def write_to_file(file, format, playlists, liked_albums):
+def write_to_file(file, format, playlists, liked_albums, followed_artists):
     """Write fetched data to a file in the specified format."""
     print(f"Writing to {file}...")
     with open(file, "w", encoding="utf-8") as f:
         if format == "json":
-            json.dump({"playlists": playlists, "albums": liked_albums}, f)
+            json.dump({"playlists": playlists, "albums": liked_albums, "followed_artists": followed_artists}, f)
         else:
             for playlist in playlists:
                 f.write(playlist["name"] + "\r\n")
@@ -187,22 +211,45 @@ def write_to_file(file, format, playlists, liked_albums):
                         )
                 f.write("\r\n")
 
+            if followed_artists:
+                f.write("Followed Artists\r\n")
+                for artist_name in followed_artists:
+                    f.write(f"{artist_name}\r\n")
+                f.write("\r\n")
 
-def main(dump="playlists,liked", format="json", file="playlists.json", token=""):
+
+def main(dump="playlists,liked,artists", format="json", file="playlists.json", token="", host="127.0.0.1"):
     print("Starting backup...")
     spotify = (
         SpotifyAPI(token)
         if token
         else SpotifyAPI.authorize(
             client_id="5c098bcc800e45d49e476265bc9b6934",
-            scope="playlist-read-private playlist-read-collaborative user-library-read",
+            scope="playlist-read-private playlist-read-collaborative user-library-read user-follow-read",
+            host=host
         )
     )
 
-    playlists, liked_albums = fetch_user_data(spotify, dump)
-    write_to_file(file, format, playlists, liked_albums)
+    playlists, liked_albums, followed_artists = fetch_user_data(spotify, dump)
+    write_to_file(file, format, playlists, liked_albums, followed_artists)
     print(f"Backup completed! Data written to {file}")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Backup Spotify playlists to a file")
+    parser.add_argument("file", nargs="?", default="playlists.json",
+                        help="Output file name (default: playlists.json)")
+    parser.add_argument("--dump", default="playlists,liked,artists",
+                        help="What to dump: playlists, liked, artists (comma-separated, default: all)")
+    parser.add_argument("--format", default="json", choices=["json", "txt"],
+                        help="Output format: json or txt (default: json)")
+    parser.add_argument("--token", default="",
+                        help="OAuth token (default: prompt for authorization)")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="Host address for the authorization server (use '0.0.0.0' for Docker)")
+
+    args = parser.parse_args()
+
+    main(dump=args.dump, format=args.format, file=args.file, token=args.token, host=args.host)
