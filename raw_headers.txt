@@ -1,0 +1,87 @@
+:authority
+music.youtube.com
+:method
+POST
+:path
+/youtubei/v1/browse?prettyPrint=false
+:scheme
+https
+accept
+*/*
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+es-ES,es;q=0.9,en;q=0.8
+authorization
+SAPISIDHASH 1761412048_1369ba6e83965b8e14bb5ed385dad8227f76fe1c_u SAPISID1PHASH 1761412048_1369ba6e83965b8e14bb5ed385dad8227f76fe1c_u SAPISID3PHASH 1761412048_1369ba6e83965b8e14bb5ed385dad8227f76fe1c_u
+content-length
+3872
+content-type
+application/json
+cookie
+VISITOR_INFO1_LIVE=CGbQ6TDtWIw; VISITOR_PRIVACY_METADATA=CgJQWRIEGgAgSg%3D%3D; PREF=tz=America.Asuncion&f7=100&f5=30000&f6=40000000; YSC=Qxtc1zARnro; __Secure-ROLLOUT_TOKEN=COrRmL2u4vGU-gEQtPSK--ORigMY9c_Tw9y_kAM%3D; _gcl_au=1.1.197521858.1761408107; __Secure-YNID=13.YT=vZwYjKrPq9TSrWnyV8VBEj2B997kHJlS3kAcqW05AvISIpJsqABi3WDAFA6Auvcpm6dNVsxCWIJKdW022VsxfVnw9fI2KZpD6fXHDnyv50gUswhmywWtbP5NwL88PHRU8y51fv3w7QohiIvyJ-KWgOuvTu88f_ylwNQstI11u-sPwQUP4TrXXmjwHZpp1OTQHxfLz0nNYX0ZnEANCbKhoGnNWrBLeMo5IuCSI9OI1Fq6G2_v_OrXCtTC1Ndu678XHVCnaCYLQmU_iFFYyAacYkFxNcJtBtYQN0fZzUVOV-yVrWcqWOfLbml_EDRhFoIxqR42RQXMp-6G1yNqLhYz3w; HSID=AIGx5NV_KPPBXEVW_; SSID=ADZnd-hug7B-NxChE; APISID=MWAVvTzNqX2KTRYV/A5h0qNqG7KVR3V5cZ; SAPISID=Me-yhch9a51AmCdP/AUFX0fXNX1ZOes9K3; __Secure-1PAPISID=Me-yhch9a51AmCdP/AUFX0fXNX1ZOes9K3; __Secure-3PAPISID=Me-yhch9a51AmCdP/AUFX0fXNX1ZOes9K3; LOGIN_INFO=AFmmF2swRQIhAKmSCLeXqUGw8w4bs7_4Yw-YeArevxSKHSk_6b9C88ybAiAzmb3ljCdYSEz2mgsXJNmBum1uBvV1sTWIsDULKv5x6w:QUQ3MjNmeTJBRmljYk5aQ2oyd3Fna3k2SzI5Qy1LLU9NbkhKZjVodWRpVWd6aExCZkZrd3VGdHE5emI5b2Rnd2wwdVMzTnNJSzFNQ2JObG01elBSVHBaVERtemxXNzRjZU5TNWRLOENXNDlEQnl2TDJycktJSmlYeVdrVDV2Y09JZDJkaXd5bHNQX1RWczBrVEVzUmdiZFI3YUg1MG5OdzJR; SID=g.a0002whQ23gibux9MlrRl0eNMCeBRCoiIqmVaK3nPhjHr1YNcUZB_ZUrhaHINeZuCKRXXdguZAACgYKAX4SARASFQHGX2MiJgqbxJeZbn9i2PcHMTduORoVAUF8yKp7qRIsMdm8Rqmx8vGWQqSF0076; __Secure-1PSID=g.a0002whQ23gibux9MlrRl0eNMCeBRCoiIqmVaK3nPhjHr1YNcUZBwTkJ7jdc9OJZOgdl_WU6dwACgYKAaESARASFQHGX2Mi4wk5JyPl3xWhNwI2uC3e0BoVAUF8yKoYBVlSXbCKKYnjSUjZ7uF70076; __Secure-3PSID=g.a0002whQ23gibux9MlrRl0eNMCeBRCoiIqmVaK3nPhjHr1YNcUZB5KNRMkKMixB4WEg4vXwhmgACgYKAaESARASFQHGX2MiBammEU58iZau0tmihxXf1hoVAUF8yKoRnOpvo3PdO9EWXtR4tuYf0076; __Secure-1PSIDTS=sidts-CjUBwQ9iI3IgvwnprL3VVD0ts2ChKYnAJWgrVMpiopyZaL4_T_4u3DfIvvNTOeLSMAFjy-mSfxAA; __Secure-3PSIDTS=sidts-CjUBwQ9iI3IgvwnprL3VVD0ts2ChKYnAJWgrVMpiopyZaL4_T_4u3DfIvvNTOeLSMAFjy-mSfxAA; SIDCC=AKEyXzVj-J07IHx7Z1e2yfFdBtxBS7mVYq6Lx25ljxz6biHcxft4THVVOiVl9h3_f9NEwPxFww; __Secure-1PSIDCC=AKEyXzUQyjk6vBLQ_Z4Se0sg9m5jDft2oH5hLgL-V0Hk1L-3GsO0KxZUrOtc9Y9FG3J1L2bFfA; __Secure-3PSIDCC=AKEyXzU4alpaDdceCSK8mq1xGqC5IOcu8YW0gB_at8n8VKTmlOeKUdF0iu8_MLYo0EqY5g3iAA
+origin
+https://music.youtube.com
+priority
+u=1, i
+referer
+https://music.youtube.com/
+sec-ch-ua
+"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"
+sec-ch-ua-arch
+"x86"
+sec-ch-ua-bitness
+"64"
+sec-ch-ua-form-factors
+"Desktop"
+sec-ch-ua-full-version
+"138.0.7204.97"
+sec-ch-ua-full-version-list
+"Not)A;Brand";v="8.0.0.0", "Chromium";v="138.0.7204.97", "Google Chrome";v="138.0.7204.97"
+sec-ch-ua-mobile
+?0
+sec-ch-ua-model
+""
+sec-ch-ua-platform
+"Windows"
+sec-ch-ua-platform-version
+"10.0.0"
+sec-ch-ua-wow64
+?0
+sec-fetch-dest
+empty
+sec-fetch-mode
+same-origin
+sec-fetch-site
+same-origin
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36
+x-browser-channel
+stable
+x-browser-copyright
+Copyright 2025 Google LLC. All rights reserved.
+x-browser-validation
+6h3XF8YcD8syi2FF2BbuE2KllQo=
+x-browser-year
+2025
+x-client-data
+CJC2yQEIorbJAQipncoBCJeCywEIkqHLAQiFoM0BCMuLzwEIjY7PARjp5M4BGMSLzwE=
+Decoded:
+message ClientVariations {
+  // Active Google-visible variation IDs on this client. These are reported for analysis, but do not directly affect any server-side behavior.
+  repeated int32 variation_id = [3300112, 3300130, 3313321, 3326231, 3330194, 3362821, 3392971, 3393293];
+  // Active Google-visible variation IDs on this client that trigger server-side behavior. These are reported for analysis *and* directly affect server-side behavior.
+  repeated int32 trigger_variation_id = [3388009, 3392964];
+}
+x-goog-authuser
+0
+x-goog-visitor-id
+CgtDR2JRNlREdFdJdyish_THBjIKCgJQWRIEGgAgSmLfAgrcAjEzLllUPXZad1lqS3JQcTlUU3JXbnlWOFZCRWoyQjk5N2tISmxTM2tBY3FXMDVBdklTSXBKc3FBQmkzV0RBRkE2QXV2Y3BtNmROVnN4Q1dJSktkVzAyMlZzeGZWbnc5ZkkyS1pwRDZmWEhEbnl2NTBnVXN3aG15d1d0YlA1TndMODhQSFJVOHk1MWZ2M3c3UW9oaUl2eUotS1dnT3V2VHU4OGZfeWx3TlFzdEkxMXUtc1B3UVVQNFRyWFhtandIWnBwMU9UUUh4Zkx6MG5OWVgwWm5FQU5DYktob0duTldyQkxlTW81SXVDU0k5T0kxRnE2RzJfdl9PclhDdFRDMU5kdTY3OFhIVkNuYUNZTFFtVV9pRkZZeUFhY1lrRnhOY0p0QnRZUU4wZlp6VVZPVi15VnJXY3FXT2ZMYm1sX0VEUmhGb0l4cVI0MlJRWE1wLTZHMXlOcUxoWXozdw%3D%3D
+x-origin
+https://music.youtube.com
+x-youtube-bootstrap-logged-in
+true
+x-youtube-client-name
+67
+x-youtube-client-version
+1.20251022.00.01
